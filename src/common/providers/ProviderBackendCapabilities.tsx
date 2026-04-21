@@ -72,6 +72,8 @@ const styles: Record<string, React.CSSProperties> = {
  * however this wrapper is now providing the same function, given the network roundtrip.
  */
 export function ProviderBackendCapabilities(props: { children: React.ReactNode }) {
+  const frontendBuildInfo = Release.buildInfo('frontend');
+  const isStaticExport = frontendBuildInfo.buildTarget === 'static';
 
   // state
   const [backendTimeout, setBackendTimeout] = React.useState(false);
@@ -83,10 +85,21 @@ export function ProviderBackendCapabilities(props: { children: React.ReactNode }
 
   // fetch capabilities
   const { data } = apiQuery.backend.listCapabilities.useQuery(undefined, {
+    enabled: !isStaticExport,
     staleTime: Release.Features.BACKEND_REVALIDATE_INTERVAL,
     refetchOnWindowFocus: true, // refetch after a long idle
     refetchOnReconnect: true, // refetch after a network change
   });
+
+
+  // [effect] static exports have no backend, so mark the frontend build as authoritative
+  React.useEffect(() => {
+    if (!isStaticExport) return;
+    storeBackendCapabilities({
+      build: frontendBuildInfo,
+    });
+    setVersionVerified(true);
+  }, [frontendBuildInfo, isStaticExport, storeBackendCapabilities]);
 
 
   // [effect] copy from the backend capabilities payload to the frontend state store
@@ -95,22 +108,21 @@ export function ProviderBackendCapabilities(props: { children: React.ReactNode }
       storeBackendCapabilities(data);
 
       // Match frontend and backend versions
-      const clientBuildInfo = Release.buildInfo('frontend');
       const serverBuildInfo = data.build || {};
-      setVersionVerified(clientBuildInfo.gitSha === serverBuildInfo.gitSha && clientBuildInfo.pkgVersion === serverBuildInfo.pkgVersion);
+      setVersionVerified(frontendBuildInfo.gitSha === serverBuildInfo.gitSha && frontendBuildInfo.pkgVersion === serverBuildInfo.pkgVersion);
     }
-  }, [data, storeBackendCapabilities]);
+  }, [data, frontendBuildInfo, storeBackendCapabilities]);
 
 
-  // [effect] set the timeout flag if waiting too long for the capabilities
+  // [effect] surface a connection error if the backend capabilities do not arrive in time
   React.useEffect(() => {
-    if (!haveCapabilities) return;
-    const timeout = setTimeout(() => setBackendTimeout(true), BACKEND_WARNING_TIMEOUT);
+    if (isStaticExport || haveCapabilities || versionVerified === true) return;
+    const timeout = window.setTimeout(() => setBackendTimeout(true), BACKEND_WARNING_TIMEOUT);
     return () => {
-      clearTimeout(timeout);
+      window.clearTimeout(timeout);
       setBackendTimeout(false);
     };
-  }, [haveCapabilities]);
+  }, [haveCapabilities, isStaticExport, versionVerified]);
 
 
   //

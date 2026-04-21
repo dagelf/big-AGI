@@ -35,6 +35,7 @@ export interface BackendCapabilities {
   hashLlmReconfig: string;
   // build data
   build?: {
+    buildTarget?: string;
     gitSha?: string;
     pkgVersion?: string;
     timestamp?: string;

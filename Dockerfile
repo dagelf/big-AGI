@@ -9,6 +9,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 WORKDIR /app
 
+RUN apk add --no-cache git
+
 # Dependency files
 COPY package*.json ./
 COPY src/server/prisma ./src/server/prisma
