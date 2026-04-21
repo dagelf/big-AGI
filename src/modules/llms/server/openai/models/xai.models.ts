@@ -2,7 +2,7 @@ import * as z from 'zod/v4';
 
 import { fetchJsonOrTRPCThrow } from '~/server/trpc/trpc.router.fetchers';
 
-import { LLM_IF_OAI_Chat, LLM_IF_OAI_Fn, LLM_IF_OAI_Json, LLM_IF_OAI_Reasoning, LLM_IF_OAI_Vision } from '~/common/stores/llms/llms.types';
+import { LLM_IF_OAI_Chat, LLM_IF_OAI_Fn, LLM_IF_OAI_Reasoning, LLM_IF_OAI_Vision } from '~/common/stores/llms/llms.types';
 import { Release } from '~/common/app.release';
 
 import type { ModelDescriptionSchema } from '../../llm.server.types';
@@ -45,7 +45,7 @@ const PRICE_40 = {
 // we don't add LLM_IF_OAI_Responses explicitly here, as the code fully treats XAI/XAI Models with responses
 
 const XAI_IF: ModelDescriptionSchema['interfaces'] = [
-  LLM_IF_OAI_Chat, LLM_IF_OAI_Fn, LLM_IF_OAI_Json,
+  LLM_IF_OAI_Chat, LLM_IF_OAI_Fn,
 ] as const;
 
 const XAI_IF_Vision: ModelDescriptionSchema['interfaces'] = [
@@ -70,7 +70,7 @@ const XAI_PAR_Reasoning = XAI_PAR;
 
 // Pre-Grok 4 models do NOT support server-side tools (web_search, x_search, code_interpreter)
 const XAI_IF_Pre4: ModelDescriptionSchema['interfaces'] = [
-  LLM_IF_OAI_Chat, LLM_IF_OAI_Fn, LLM_IF_OAI_Json,
+  LLM_IF_OAI_Chat, LLM_IF_OAI_Fn,
 ] as const;
 
 const XAI_IF_Pre4_Vision: ModelDescriptionSchema['interfaces'] = [
@@ -92,7 +92,7 @@ const _knownXAIChatModels: ManualMappings = [
     interfaces: [...XAI_IF_Vision, LLM_IF_OAI_Reasoning],
     parameterSpecs: XAI_PAR_Reasoning,
     chatPrice: PRICE_420,
-    benchmark: { cbaElo: 1481 }, // grok-4.20-beta-0309-reasoning (CBA name)
+    benchmark: { cbaElo: 1480 }, // grok-4.20-beta-0309-reasoning (CBA name)
   },
   {
     idPrefix: 'grok-4.20-0309-non-reasoning',
@@ -103,7 +103,7 @@ const _knownXAIChatModels: ManualMappings = [
     interfaces: XAI_IF_Vision,
     parameterSpecs: XAI_PAR,
     chatPrice: PRICE_420,
-    benchmark: { cbaElo: 1492 }, // grok-4.20-beta1 (CBA name, preliminary)
+    benchmark: { cbaElo: 1482 }, // grok-4.20-beta1 (CBA name)
   },
   {
     idPrefix: 'grok-4.20-multi-agent-0309',
@@ -111,9 +111,14 @@ const _knownXAIChatModels: ManualMappings = [
     description: 'Multi-agent reasoning model that runs 4 specialized agents in parallel (coordinator, fact-checker, analyst, challenger) for collaborative verification with reduced hallucination.',
     contextWindow: 2000000,
     maxCompletionTokens: undefined,
-    interfaces: [...XAI_IF_Vision, LLM_IF_OAI_Reasoning],
-    parameterSpecs: XAI_PAR_Reasoning,
+    // no LLM_IF_OAI_Fn: multi-agent does not support function calling
+    interfaces: [LLM_IF_OAI_Chat, LLM_IF_OAI_Vision, LLM_IF_OAI_Reasoning],
+    parameterSpecs: [
+      { paramId: 'llmVndOaiEffort', enumValues: ['low', 'medium', 'high'] },
+      ...XAI_PAR_Reasoning,
+    ],
     chatPrice: PRICE_420,
+    benchmark: { cbaElo: 1474 }, // grok-4.20-multi-agent-beta-0309
   },
 
   // Grok 4.1
@@ -126,7 +131,7 @@ const _knownXAIChatModels: ManualMappings = [
     interfaces: [...XAI_IF_Vision, LLM_IF_OAI_Reasoning],
     parameterSpecs: XAI_PAR_Reasoning,
     chatPrice: PRICE_41,
-    benchmark: { cbaElo: 1430 }, // grok-4-1-fast-reasoning
+    benchmark: { cbaElo: 1432 }, // grok-4-1-fast-reasoning
   },
   {
     idPrefix: 'grok-4-1-fast-non-reasoning',
@@ -137,7 +142,7 @@ const _knownXAIChatModels: ManualMappings = [
     interfaces: XAI_IF_Vision,
     parameterSpecs: XAI_PAR,
     chatPrice: PRICE_41,
-    benchmark: { cbaElo: 1466 }, // grok-4.1
+    benchmark: { cbaElo: 1461 }, // grok-4.1
   },
 
   // Grok 4
@@ -163,6 +168,7 @@ const _knownXAIChatModels: ManualMappings = [
     interfaces: XAI_IF_Vision,
     parameterSpecs: XAI_PAR,
     chatPrice: PRICE_40,
+    benchmark: { cbaElo: 1421 }, // grok-4-fast-chat
   },
   {
     hidden: true, // yield to 4.20
@@ -187,7 +193,7 @@ const _knownXAIChatModels: ManualMappings = [
     interfaces: XAI_IF_Pre4,
     parameterSpecs: XAI_PAR_Pre4,
     chatPrice: { input: 3, output: 15, cache: { cType: 'oai-ac', read: 0.75 } },
-    benchmark: { cbaElo: 1411 }, // grok-3-preview-02-24
+    benchmark: { cbaElo: 1412 }, // grok-3-preview-02-24
   },
   {
     idPrefix: 'grok-3-mini',
